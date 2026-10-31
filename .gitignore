@@ -1,0 +1,22 @@
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+.env*
+!.env.example
+.DS_Store
+/public/sw.js
+/public/pwa-assets.json
+/playwright-report/
+/test-results/
+.vercel/
+
+# Local implementation history (keep on this machine)
+/IMPLEMENTATION_REPORT.md
+/M2_REPORT.md
+/M3_REPORT.md
+/M4_REPORT.md
+/M5_REPORT.md
+/PLAN.md
+/CODEX_START.md

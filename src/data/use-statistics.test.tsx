@@ -1,0 +1,20 @@
+import 'fake-indexeddb/auto';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, expect, it } from 'vitest';
+import { useStatistics } from './use-statistics';
+import { db } from './database';
+import { KnowledgeRepository } from './knowledge-repository';
+import { FinalTestRepository } from './final-test-repository';
+afterEach(async () => { cleanup(); db.close(); await db.delete(); });
+it('最終合格と編集リセットをliveQueryで統計へ反映し、過去の合格は保持する', async () => {
+  await db.open(); const { result } = renderHook(useStatistics);
+  await waitFor(() => expect(result.current.statistics?.registered).toBe(0));
+  const repo = new KnowledgeRepository(); let id!: string;
+  await act(async () => { id = await repo.save({ term: 'HTTP', definition: 'Web通信で利用されるプロトコル', cloze_start: 11, cloze_end: 16 }); await db.progress.update(id, { status: 'final_due', level: undefined }); });
+  await waitFor(() => expect(result.current.statistics?.learning).toBe(1));
+  const knowledge = (await db.knowledge.get(id))!; const progress = (await db.progress.get(id))!;
+  await act(async () => { await new FinalTestRepository(db, () => progress.next_due_at!).submit({ knowledge, progress, responses: ['HTTP', 'プロトコル'], ids: { session: crypto.randomUUID(), reverse: crypto.randomUUID(), cloze: crypto.randomUUID() } }); });
+  await waitFor(() => expect(result.current.statistics).toMatchObject({ mastered: 1, learning: 0, reviews: 1, final_passed: 1 }));
+  await act(async () => { await repo.save({ ...knowledge, term: 'TCP' }, { id, expected_updated_at: knowledge.updated_at, resetConfirmed: true }); });
+  await waitFor(() => expect(result.current.statistics).toMatchObject({ mastered: 0, learning: 1, reviews: 1, final_passed: 1 }));
+});
