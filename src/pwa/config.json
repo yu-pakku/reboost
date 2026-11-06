@@ -1,5 +1,5 @@
 {
-  "staticPages": ["/", "/review", "/account", "/knowledge", "/knowledge/new", "/offline"],
+  "staticPages": ["/", "/review", "/account", "/settings", "/knowledge", "/knowledge/new", "/offline"],
   "dynamicPattern": "^/(?:knowledge/[0-9a-f-]{36}(?:/edit)?|test/[0-9a-f-]{36})$",
   "icons": ["/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png", "/apple-touch-icon.png", "/icons/favicon-32.png"]
 }

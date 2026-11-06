@@ -24,7 +24,7 @@ export function FinalTestPage({ knowledgeId }: { knowledgeId?: string } = {}) {
   if (entry) try { prepareFinalTest(entry.knowledge, entry.progress, now); }
   catch (e) { issue = e instanceof Error ? e.message : 'テストを開始できません。'; editable = e instanceof ReviewError && (e.code === 'cloze' || e.code === 'leak'); }
   return <AppShell active="/review" hideNav>{active ? <FinalTestExercise entry={active.entry} ids={active.ids}/> : !entries ? <LoadingOrError error={error}/> : <>
-    <Link href="/review" className="text-link">← 復習一覧</Link><div className="page-intro"><p className="eyebrow">思い出せるか、確かめよう。</p><h1>最終テスト</h1></div>
+    <Link href="/review" className="text-link">← 復習一覧</Link><div className="page-intro"><h1>最終テスト</h1></div>
     {!entry ? <p className="error-box" role="alert">この知識が見つかりません。</p> : <><p>用語入力と穴埋めの2問です。全問解答後に結果を表示します。</p>{entry.progress.next_due_at && <p className="field-note">受験予定：{formatDate(entry.progress.next_due_at)}</p>}
     {issue ? <><p className="error-box" role="alert">{issue}</p>{editable && <Link className="primary-button" href={`/knowledge/${id}/edit`}>知識を編集して設定する</Link>}</> : <button className="primary-button" onClick={() => setActive({ entry: structuredClone(entry), ids: { session: crypto.randomUUID(), reverse: crypto.randomUUID(), cloze: crypto.randomUUID() } })}>2問のテストを開始</button>}
     <p className="field-note">途中で中断・再読み込みすると未完了の回答は破棄され、進捗は変わりません。合格はアプリ独自の学習達成状態であり、永久記憶を保証しません。</p></>}

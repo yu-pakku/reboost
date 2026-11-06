@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ReviewSummary } from './review-summary';
+import Home from './home-page';
 import { ReviewExercise, ReviewScreen } from './review-screen';
 import { completeReview, type ReviewEntry, type ReviewResult } from '@/domain/review';
 import { initialProgress, type Knowledge } from '@/domain/knowledge';
@@ -8,6 +8,7 @@ import { reviewRepository } from '@/data/review-repository';
 const fixture = vi.hoisted(() => ({ entries: [] as ReviewEntry[], now: Date.parse('2026-10-30T01:00:00.000Z') }));
 vi.mock('@/data/use-knowledge', () => ({ useKnowledge: () => ({ entries: fixture.entries }) }));
 vi.mock('@/lib/use-review-clock', () => ({ useReviewClock: () => fixture.now }));
+vi.mock('@/data/onboarding', () => ({ shouldShowOnboarding: async () => false }));
 const now = new Date(fixture.now).toISOString();
 const knowledge: Knowledge = { id: '48dd520f-dff2-40c5-ab92-2b8b234aeecc', term: 'HTTP', definition: 'Web通信で利用されるプロトコル', cloze_start: 11, cloze_end: 16, created_at: now, updated_at: now };
 function entry(level: 1 | 2 | 3 = 1): ReviewEntry { return { knowledge, progress: { ...initialProgress(knowledge.id, now), level } }; }
@@ -16,7 +17,7 @@ describe('復習UI', () => {
   it('空状態・3分類・最終待ちを表示し、閲覧では記録しない', () => {
     const save = vi.spyOn(reviewRepository, 'submit'); render(<ReviewScreen/>);
     expect(screen.getByRole('heading', { name: 'まだ知識がありません' })).toBeInTheDocument();
-    for (const title of ['今すべき', '期限超過', '今後', '最終テスト待ち']) expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+    for (const title of ['今すべき', '期限超過', '最終テスト待ち', '2026年 10月']) expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
     expect(save).not.toHaveBeenCalled();
   });
   it('問題を開いただけ・戻っただけでは進まず、L1確認でのみ保存する', async () => {
@@ -57,10 +58,11 @@ describe('復習UI', () => {
     const base = entry(); fixture.entries = [{ ...base, progress: { ...base.progress, status: 'final_due', level: undefined } }, { knowledge: { ...knowledge, id: crypto.randomUUID(), term: '非表示の知識', archived_at: now }, progress: { ...base.progress, status: 'archived' } }]; render(<ReviewScreen/>);
     const section = screen.getByRole('region', { name: '最終テスト待ち' }); expect(within(section).getByRole('link', { name: '最終テストへ' })).toBeInTheDocument(); expect(screen.queryByRole('button', { name: 'HTTPを復習' })).not.toBeInTheDocument(); expect(document.body).not.toHaveTextContent('非表示の知識');
   });
-  it('通常復習と受験可能な最終テストの件数を区別し、ホームにも案内する', () => {
+  it('受験可能な最終テストを復習画面の件数とホームの復習タブに反映する', async () => {
     const base = entry(); fixture.entries = [{ ...base, progress: { ...base.progress, status: 'final_due', level: undefined } }];
     const { unmount } = render(<ReviewScreen/>); expect(screen.getByText('通常の復習は0件、受験可能な最終テストは1件です。')).toBeInTheDocument(); unmount();
-    render(<ReviewSummary/>); expect(screen.getByRole('link', { name: '最終テスト 1件が受験可能 →' })).toHaveAttribute('href', '/review');
+    render(<Home/>); const tab = await screen.findByRole('link', { name: '復習' });
+    expect(tab).toHaveAccessibleDescription('復習できる課題があります');
   });
   it('L3の2成功目の結果は最終待ちで止まり、次へで一覧へ戻る', async () => {
     const value = entry(3); value.progress.successes_in_level = 1;

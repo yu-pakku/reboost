@@ -18,14 +18,16 @@ beforeEach(() => {
   Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => online }); Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: serviceWorker });
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); document.querySelector('meta[name="reboost-offline-shell"]')?.remove(); Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true }); Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: undefined }); });
-it('登録と準備状態を表示し、更新は入力を保持して利用者操作まで待つ', async () => {
+it('登録を静かに行い、更新は入力を保持して利用者操作まで待つ', async () => {
   render(<PwaProvider><PwaStatus/><input aria-label="入力中" defaultValue="残す回答"/></PwaProvider>);
-  expect(await screen.findByText('オフライン利用の準備ができています。')).toBeInTheDocument(); expect(serviceWorker.register).toHaveBeenCalledWith('/sw.js', { scope: '/', updateViaCache: 'none' });
+  await screen.findByRole('button', { name: '保存後に更新する' });
+  expect(screen.queryByText('オフライン利用の準備ができています。')).not.toBeInTheDocument(); expect(serviceWorker.register).toHaveBeenCalledWith('/sw.js', { scope: '/', updateViaCache: 'none' });
   expect(worker.postMessage.mock.calls.some(call => call[0].type === 'APPLY_UPDATE')).toBe(false); expect(screen.getByLabelText('入力中')).toHaveValue('残す回答'); fireEvent.click(screen.getByRole('button', { name: '保存後に更新する' })); expect(worker.postMessage).toHaveBeenCalledWith({ type: 'APPLY_UPDATE' });
 });
 it('ネットワーク切断・復帰とサーバー到達不能の保存画面を案内する', async () => {
+  registration.waiting = undefined;
   const meta = document.createElement('meta'); meta.name = 'reboost-offline-shell'; document.head.append(meta);
   render(<PwaProvider><PwaStatus/></PwaProvider>); expect(await screen.findByText('接続できないため、保存済みの画面を使っています。')).toBeInTheDocument();
   online = false; fireEvent(window, new Event('offline')); expect(screen.getByText('オフライン：この端末に保存した知識を利用できます。')).toBeInTheDocument();
-  meta.remove(); online = true; fireEvent(window, new Event('online')); await waitFor(() => expect(screen.getByText('オフライン利用の準備ができています。')).toBeInTheDocument());
+  meta.remove(); online = true; fireEvent(window, new Event('online')); await waitFor(() => expect(screen.queryByLabelText('接続とアプリの状態')).not.toBeInTheDocument());
 });

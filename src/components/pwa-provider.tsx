@@ -76,9 +76,17 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
 export function PwaStatus() {
   const pwa = useContext(PwaContext);
   if (!pwa) return null;
+  const message = pwa.fallback && pwa.online
+    ? '接続できないため、保存済みの画面を使っています。'
+    : !pwa.online
+      ? 'オフライン：この端末に保存した知識を利用できます。'
+      : pwa.error && !pwa.ready
+        ? 'オフライン画面を準備できませんでした。オンラインで再読み込みしてください。'
+        : undefined;
+  if (!message && !pwa.waiting) return null;
   return <aside className="pwa-status" aria-label="接続とアプリの状態">
-    <p role="status">{pwa.fallback && pwa.online ? '接続できないため、保存済みの画面を使っています。' : !pwa.online ? 'オフライン：この端末に保存した知識を利用できます。' : pwa.ready ? 'オフライン利用の準備ができています。' : pwa.error ? 'オフライン画面を準備できませんでした。オンラインで再読み込みしてください。' : 'オフライン利用を準備中です。初回はオンラインでお待ちください。'}</p>
-    {pwa.waiting && <div className="update-notice"><p>新しい版があります。入力や回答を保存してから更新してください。</p><button disabled={pwa.updating} onClick={pwa.applyUpdate}>{pwa.updating ? '更新中…' : '保存後に更新する'}</button></div>}
+    {message && <p role="status">{message}</p>}
+    {pwa.waiting && <div className="update-notice"><p role="status">新しい版があります。入力や回答を保存してから更新してください。</p><button disabled={pwa.updating} onClick={pwa.applyUpdate}>{pwa.updating ? '更新中…' : '保存後に更新する'}</button></div>}
   </aside>;
 }
 export function InstallHelp() {

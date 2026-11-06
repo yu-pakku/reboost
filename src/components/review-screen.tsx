@@ -4,6 +4,8 @@ import { useRef, useState, type FormEvent } from 'react';
 import { AppShell } from './app-shell';
 import { EmptyState } from './empty-state';
 import { LoadingOrError } from './knowledge-pages';
+import { ReviewCalendar } from './review-calendar';
+import { useStatistics } from '@/data/use-statistics';
 import { useKnowledge } from '@/data/use-knowledge';
 import { buildQuestion, reviewQueue, ReviewError, type ReviewEntry, type ReviewQuestion, type ReviewResult, type QueueGroup } from '@/domain/review';
 import { reviewRepository, reviewError } from '@/data/review-repository';
@@ -13,22 +15,26 @@ import { useReviewClock } from '@/lib/use-review-clock';
 
 export function ReviewScreen() {
   const { entries, error } = useKnowledge();
+  const { statistics, error: activityError } = useStatistics();
   const now = useReviewClock();
   const [active, setActive] = useState<{ entry: ReviewEntry; id: string }>();
   const queue = reviewQueue(entries ?? [], now);
   const ready = queue.overdue.length + queue.due.length;
-  const finalReady = queue.final.filter(e => Date.parse(e.progress.next_due_at!) <= now).length;
+  const available = { ...queue, final: queue.final.filter(e => Date.parse(e.progress.next_due_at!) <= now) };
+  const finalReady = available.final.length;
   return <AppShell active="/review" hideNav={!!active}>
     {active ? <ReviewExercise key={active.id} entry={active.entry} attemptId={active.id} remaining={ready} onBack={() => setActive(undefined)}/> : <>
-      <div className="page-intro"><p className="eyebrow">少しずつ、何度でも。</p><h1>復習</h1><p className="intro-copy">通常の復習は{ready}件、受験可能な最終テストは{finalReady}件です。</p></div>
+      <div className="page-intro"><h1>復習</h1><p className="intro-copy">通常の復習は{ready}件、受験可能な最終テストは{finalReady}件です。</p></div>
       {!entries ? <LoadingOrError error={error}/> : <>
         {!entries.length && <EmptyState title="まだ知識がありません">ホームから最初の知識を登録しましょう。<Link className="text-link" href="/knowledge/new">知識を追加 →</Link></EmptyState>}
-        <p className="field-note">予定を過ぎても課題は残ります。回答を完了した時刻から次の予定を作ります。表示時刻は日本時間です。</p>
-        {([{ group: 'overdue', title: '期限超過', empty: '前日以前の未完了の復習はありません。' }, { group: 'due', title: '今すべき', empty: '今日、予定時刻を迎えた復習はありません。' }, { group: 'upcoming', title: '今後', empty: '今後の学習予定はありません。' }, { group: 'final', title: '最終テスト待ち', empty: '最終テスト待ちの知識はありません。' }] satisfies { group: QueueGroup; title: string; empty: string }[]).map(section => <section className="section-block review-queue" key={section.group} aria-labelledby={`queue-${section.group}`}><div className="section-heading"><h2 id={`queue-${section.group}`}>{section.title}</h2><span className="count-badge">{queue[section.group].length}件</span></div>
-          {queue[section.group].length ? <ul>{queue[section.group].map(entry => <li key={entry.knowledge.id}><div><h3 className="user-text">{entry.knowledge.term}</h3><p>{progressLabel(entry.progress)}</p><time dateTime={entry.progress.next_due_at}>{formatDate(entry.progress.next_due_at!)}</time></div>
-            {section.group === 'due' || section.group === 'overdue' ? <button className="secondary-button" onClick={() => setActive({ entry, id: crypto.randomUUID() })} aria-label={`${entry.knowledge.term}を復習`}>復習する</button> : section.group === 'final' ? <Link className="secondary-button" href={`/test/${entry.knowledge.id}`}>{Date.parse(entry.progress.next_due_at!) <= now ? '最終テストへ' : '受験予定を確認'}</Link> : <span className="status-label">予定時刻まで待機</span>}
+        <section className="calendar-ready" aria-label="今できる学習">
+        {([{ group: 'overdue', title: '期限超過', empty: '前日以前の未完了の復習はありません。' }, { group: 'due', title: '今すべき', empty: '今日、予定時刻を迎えた復習はありません。' }, { group: 'final', title: '最終テスト待ち', empty: '受験可能な最終テストはありません。' }] satisfies { group: QueueGroup; title: string; empty: string }[]).map(section => <section className="section-block review-queue" key={section.group} aria-labelledby={`queue-${section.group}`}><div className="section-heading"><h2 id={`queue-${section.group}`}>{section.title}</h2><span className="count-badge">{available[section.group].length}件</span></div>
+          {available[section.group].length ? <ul>{available[section.group].map(entry => <li key={entry.knowledge.id}><div><h3 className="user-text">{entry.knowledge.term}</h3><p>{progressLabel(entry.progress)}</p><time dateTime={entry.progress.next_due_at}>{formatDate(entry.progress.next_due_at!)}</time></div>
+            {section.group === 'due' || section.group === 'overdue' ? <button className="secondary-button" onClick={() => setActive({ entry, id: crypto.randomUUID() })} aria-label={`${entry.knowledge.term}を復習`}>復習する</button> : section.group === 'final' ? <Link className="secondary-button" href={`/test/${entry.knowledge.id}`}>最終テストへ</Link> : <span className="status-label">予定時刻まで待機</span>}
           </li>)}</ul> : <p className="field-note">{section.empty}</p>}
         </section>)}
+        </section>
+        <ReviewCalendar entries={entries} activity={statistics?.activity} error={activityError} now={now}/>
       </>}
     </>}
   </AppShell>;

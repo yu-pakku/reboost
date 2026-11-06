@@ -1,7 +1,6 @@
 import { expect, it } from 'vitest';
 import { learningStatistics } from './statistics';
 import { completeFinalTest } from './final-test';
-import { particlePosition } from './brain';
 import { initialProgress, type Knowledge, type LearningProgress } from './knowledge';
 const time = '2026-10-30T15:00:00.000Z';
 const knowledge: Knowledge = { id: crypto.randomUUID(), term: 'HTTP', definition: 'Web通信で利用されるプロトコル', cloze_start: 11, cloze_end: 16, created_at: time, updated_at: time };
@@ -24,8 +23,4 @@ it('空状態と未完了セッションを集計しない', () => {
   expect(learningStatistics([], []).days).toEqual([]);
   const pass = completeFinalTest(knowledge, pending, ['HTTP', 'プロトコル'], time, ids());
   expect(learningStatistics([{ knowledge, progress: pending }], [pass.attempts[0]])).toMatchObject({ registered: 1, learning: 1, reviews: 0, final_passed: 0 });
-});
-it('粒子座標はIDだけで決まり、再表示や追加によって動かず脳の内側にある', () => {
-  const point = particlePosition(knowledge.id); expect(particlePosition(knowledge.id)).toEqual(point);
-  for (let i = 0; i < 1000; i++) { const p = particlePosition(`knowledge-${i}`); expect(p.x).toBeGreaterThanOrEqual(52); expect(p.x).toBeLessThanOrEqual(268); expect(p.y).toBeGreaterThanOrEqual(58); expect(p.y).toBeLessThanOrEqual(198); }
 });

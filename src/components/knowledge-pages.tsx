@@ -4,6 +4,7 @@ import { replaceAppRoute } from '@/pwa/navigation';
 import { useParams, useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { AppShell } from './app-shell';
+import { Icon } from './icon';
 import { ReviewHistory } from './review-history';
 import { EmptyState } from './empty-state';
 import { KnowledgeForm } from './knowledge-form';
@@ -15,15 +16,45 @@ import { formatDate, progressLabel } from '@/lib/knowledge-display';
 export function LoadingOrError({ error }: { error?: string }) {
   return error ? <div className="error-box" role="alert"><p>{error}</p><button className="secondary-button" onClick={() => window.location.reload()}>再読み込み</button></div> : <p className="loading-message" role="status">端末内データを読み込み中…</p>;
 }
+const filters = [
+  ['all', 'すべて'], ['learning', '学習中'], ['mastered', '定着済み'], ['archived', 'アーカイブ済み'],
+] as const;
+type KnowledgeFilter = typeof filters[number][0];
+
 export function KnowledgeList() {
   const { entries, error } = useKnowledge();
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('active');
+  const [filter, setFilter] = useState<KnowledgeFilter>('all');
   const query = comparableText(search);
-  const visible = entries?.filter(({ knowledge: k, progress: p }) => (filter === 'all' || filter === 'active' && p.status !== 'archived' || filter === 'learning' && (p.status === 'learning' || p.status === 'final_due') || filter === p.status) && (!query || comparableText(k.term).includes(query) || comparableText(k.definition).includes(query)));
-  return <AppShell active="/"><Link className="text-link" href="/">← ホーム</Link><div className="page-intro"><p className="eyebrow">覚えておきたいことを、ひとつずつ。</p><h1>知識一覧</h1></div><Link href="/knowledge/new" className="primary-button">＋ 知識を追加</Link>
-    <div className="list-filters"><label htmlFor="search">用語・意味を検索</label><input id="search" type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="キーワードを入力"/><label htmlFor="status-filter">表示する状態</label><select id="status-filter" value={filter} onChange={e => setFilter(e.target.value)}><option value="active">アーカイブ以外</option><option value="all">すべて</option><option value="learning">学習中</option><option value="mastered">定着済み</option><option value="archived">アーカイブ</option></select></div>
-    {!entries ? <LoadingOrError error={error}/> : <><p className="field-note" role="status">{visible?.length}件表示 / 全{entries.length}件</p>{visible?.length ? <ul className="knowledge-list">{visible.map(({ knowledge: k, progress: p }) => <li key={k.id}><Link href={`/knowledge/${k.id}`}><span className="status-label">{progressLabel(p)}</span><h2>{k.term}</h2><p className="definition-excerpt">{k.definition}</p><span className="field-note">更新：{formatDate(k.updated_at)}</span></Link></li>)}</ul> : <EmptyState title={entries.length ? '条件に合う知識がありません' : 'まだ知識がありません'}>{entries.length ? '検索語や状態の条件を変えてください。' : '覚えておきたい用語と意味を追加しましょう。'}</EmptyState>}</>}
+  const visible = (entries ?? []).filter(({ knowledge, progress }) => {
+    const status = knowledge.archived_at ? 'archived' : progress.status === 'final_due' ? 'learning' : progress.status;
+    return (filter === 'all' || filter === status) &&
+      (!query || comparableText(knowledge.term).includes(query) || comparableText(knowledge.definition).includes(query));
+  });
+  return <AppShell active="/knowledge">
+    <div className="page-intro compact-intro library-heading"><h1>知識</h1>
+      <Link className="secondary-button library-settings" href="/settings">設定</Link>
+    </div>
+    <div className="library-search"><label className="sr-only" htmlFor="search">用語・意味を検索</label>
+      <input id="search" type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="用語・意味を検索" enterKeyHint="search"/>
+    </div>
+    <div className="segmented-control library-filters" role="group" aria-label="学習状態">
+      {filters.map(([value, label]) => <button type="button" key={value} aria-pressed={value === filter} onClick={() => setFilter(value)}>{label}</button>)}
+    </div>
+    {!entries ? <LoadingOrError error={error}/> : <>
+      <p className="field-note library-count" role="status">{visible.length}件表示 / 全{entries.length}件</p>
+      {visible.length ? <ul className="knowledge-list library-list">{visible.map(({ knowledge, progress }) => <li key={knowledge.id}>
+        <Link href={`/knowledge/${knowledge.id}`}>
+          <div><span className="status-label">{progressLabel(progress)}</span><h2>{knowledge.term}</h2>
+            <p className="definition-excerpt">{knowledge.definition}</p></div>
+          <Icon name="arrow" size={16}/>
+        </Link>
+      </li>)}</ul> : <EmptyState title={entries.length ? '条件に合う知識がありません' : 'まだ知識がありません'}>
+        {entries.length ? <button type="button" className="text-button" onClick={() => { setFilter('all'); setSearch(''); }}>絞り込みを解除</button> :
+          '覚えておきたい用語と意味を追加しましょう。'}
+      </EmptyState>}
+    </>}
+    <Link href="/knowledge/new" className="text-link">＋ 知識を追加</Link>
   </AppShell>;
 }
 export function KnowledgeDetail({ edit = false, knowledgeId }: { edit?: boolean; knowledgeId?: string }) {
@@ -47,7 +78,7 @@ export function KnowledgeDetail({ edit = false, knowledgeId }: { edit?: boolean;
     } catch (error) { setActionError(storageError(error)); }
     finally { lock.current = false; setBusy(false); }
   }
-  return <AppShell active="/" hideNav={edit}><Link className="text-link" href="/knowledge">← 知識一覧</Link>{!entries ? <LoadingOrError error={error}/> : !entry ? <EmptyState title="知識が見つかりません">削除されたか、この端末には保存されていません。</EmptyState> : edit ? <><div className="page-intro"><p className="eyebrow">内容を整える。</p><h1>知識を編集</h1></div><KnowledgeForm key={entry.knowledge.id} existing={entry.knowledge}/></> : <>
+  return <AppShell active="/knowledge" hideNav={edit}><Link className="text-link" href="/knowledge">← 知識一覧</Link>{!entries ? <LoadingOrError error={error}/> : !entry ? <EmptyState title="知識が見つかりません">削除されたか、この端末には保存されていません。</EmptyState> : edit ? <><div className="page-intro"><h1>知識を編集</h1></div><KnowledgeForm key={entry.knowledge.id} existing={entry.knowledge}/></> : <>
     <div className="page-intro"><p className="eyebrow">保存した知識</p><h1 className="user-text">{entry.knowledge.term}</h1><p className="status-label inline-status">{progressLabel(entry.progress)}</p></div>
     <section className="detail-card"><h2>意味・説明</h2><p className="user-text">{entry.knowledge.definition}</p><h2>穴埋めプレビュー</h2><p className="user-text">{clozePreview(entry.knowledge)}</p><p className="field-note">指定箇所：{entry.knowledge.definition.slice(entry.knowledge.cloze_start, entry.knowledge.cloze_end)}</p></section>
     <dl className="detail-meta"><dt>登録</dt><dd>{formatDate(entry.knowledge.created_at)}</dd><dt>更新</dt><dd>{formatDate(entry.knowledge.updated_at)}</dd><dt>次回予定</dt><dd>{entry.progress.next_due_at ? formatDate(entry.progress.next_due_at) : "予定なし"}</dd><dt>学習状態</dt><dd>{entry.progress.status === 'learning' ? '学習中・未定着' : progressLabel(entry.progress)}</dd></dl><p className="field-note">閲覧しても進捗は変わりません。予定時刻を迎えた知識は復習タブから学習できます。</p>

@@ -1,7 +1,7 @@
 'use client';
 import { useSyncExternalStore } from 'react';
 import Home from './home-page';
-import Account from './account-page';
+import Settings from './settings-page';
 import KnowledgeNew from './knowledge-new-page';
 import { KnowledgeDetail, KnowledgeList } from './knowledge-pages';
 import { ReviewScreen } from './review-screen';
@@ -13,7 +13,7 @@ export function OfflineApplication() {
   if (!href) return <p className="loading-message" role="status">端末内の画面を準備中…</p>;
   const path = offlineTarget(href);
   if (path === '/') return <Home/>;
-  if (path === '/account') return <Account/>;
+  if (path === '/account' || path === '/settings') return <Settings/>;
   if (path === '/review') return <ReviewScreen/>;
   if (path === '/knowledge/new') return <KnowledgeNew/>;
   if (path === '/knowledge') return <KnowledgeList/>;

@@ -64,7 +64,28 @@ describe('一覧・詳細', () => {
     const { rerender } = render(<KnowledgeList/>); expect(screen.getByRole('heading', { name: 'まだ知識がありません' })).toBeInTheDocument();
     fixture.entries = [{ knowledge, progress: initialProgress(knowledge.id, knowledge.updated_at) }]; rerender(<KnowledgeList/>);
     expect(screen.getByRole('heading', { name: 'HTTP' })).toBeInTheDocument(); fireEvent.change(screen.getByLabelText('用語・意味を検索'), { target: { value: 'プロトコル' } }); expect(screen.getByRole('heading', { name: 'HTTP' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('表示する状態'), { target: { value: 'archived' } }); expect(screen.getByRole('heading', { name: '条件に合う知識がありません' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'アーカイブ済み' })); expect(screen.getByRole('heading', { name: '条件に合う知識がありません' })).toBeInTheDocument();
+  });
+  it('学習中に最終待ちを含め、定着済み・アーカイブと分ける', () => {
+    const states = ['learning', 'final_due', 'mastered', 'archived'] as const;
+    fixture.entries = states.map((status, index) => {
+      const id = crypto.randomUUID();
+      return {
+        knowledge: { ...knowledge, id, term: ['練習', '最終待ち', '定着', '保管済み'][index] },
+        progress: { ...initialProgress(id, knowledge.updated_at), status },
+      };
+    });
+    render(<KnowledgeList/>);
+    expect(screen.getByRole('link', { name: '設定' })).toHaveAttribute('href', '/settings');
+    fireEvent.click(screen.getByRole('button', { name: '学習中' }));
+    expect(screen.getByRole('heading', { name: '最終待ち' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '練習' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '定着' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '定着済み' }));
+    expect(screen.getByRole('heading', { name: '定着' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '保管済み' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'アーカイブ済み' }));
+    expect(screen.getByRole('heading', { name: '保管済み' })).toBeInTheDocument();
   });
   it('削除確認のキャンセルでは削除せず、承諾時だけ保存層を呼ぶ', async () => {
     fixture.entries = [{ knowledge, progress: initialProgress(knowledge.id, knowledge.updated_at) }]; const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false); const remove = vi.spyOn(knowledgeRepository, 'remove').mockResolvedValue(); render(<KnowledgeDetail/>);
