@@ -214,3 +214,12 @@ html { scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom)); }
 .calendar-event-section time { color:var(--muted); font-variant-numeric:tabular-nums; }
 @media (max-width:359px) { .calendar-grid { margin-inline:-18px; } }
 @media (min-width:360px) and (max-width:375px) { .calendar-grid { margin-inline:-2px; } }
+
+/* Accepted vessel preview: retain its original horizontal scale and 1.5 vertical ratio. */
+.home-collection .gravity-vessel .brain-svg { max-height:none; aspect-ratio:400 / 351; }
+.vessel-controls { display:flex; justify-content:center; gap:16px; flex-wrap:wrap; }
+.vessel-controls button { min-height:44px; background:none; border:0; color:var(--quiet, #526d79); font-size:.8rem; padding:4px 8px; }
+.vessel-controls button:disabled { opacity:.6; }
+.vessel-ball-enter { animation:vessel-arrive .9s ease-out both; }
+@keyframes vessel-arrive { from { opacity:0; transform:translateY(-24px); } to { opacity:1; transform:translateY(0); } }
+@media (prefers-reduced-motion:reduce) { .vessel-ball-enter { animation:none; } }

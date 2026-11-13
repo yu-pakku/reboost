@@ -18,3 +18,8 @@ it('新しい合格の粒子だけに追加アニメーションを付け、再�
   fixture.entries = [mastered('new')]; const { unmount } = render(<StrictMode><BrainContainer entries={fixture.entries}/></StrictMode>); await waitFor(() => expect(document.querySelector('.particle-added')).not.toBeNull()); unmount();
   render(<BrainContainer entries={fixture.entries}/>); await waitFor(() => expect(sessionStorage.getItem('reboost-brain-seen')).toContain('new')); expect(document.querySelector('.particle-added')).toBeNull();
 });
+it.each([6, 32, 100])('定着済み%d件を同数の種入りの玉で表示する', count => {
+  render(<BrainContainer entries={Array.from({ length: count }, (_, i) => mastered(String(i)))}/>);
+  expect(document.querySelectorAll('[data-particle-id]')).toHaveLength(count);
+  expect(screen.getByRole('img')).toHaveAccessibleDescription(`定着済みの知識${count}件を${count}個の種入りの玉で表示しています。`);
+});

@@ -1,0 +1,23 @@
+import { expect, it } from 'vitest';
+import { insideWall, nearestWall, stepVessel, vesselSlots, type MemoryBall } from './vessel-physics';
+const wall = [{ x: 40, y: -20 }, { x: 360, y: -20 }, { x: 360, y: 245 }, { x: 40, y: 245 }];
+it('0/6/32件の初期配置を底から作り、全ての玉が壁の内側で接触せず収まる', () => {
+  for (const count of [0, 6, 32]) {
+    const slots = vesselSlots(wall, count, 21);
+    expect(slots).toHaveLength(count);
+    slots.forEach((p, i) => {
+      expect(insideWall(wall, p.x, p.y)).toBe(true);
+      expect(nearestWall(wall, p.x, p.y).distance).toBeGreaterThanOrEqual(21);
+      slots.slice(i + 1).forEach(q => expect(Math.hypot(p.x - q.x, p.y - q.y)).toBeGreaterThanOrEqual(42));
+    });
+  }
+});
+it('重力・横方向の重力・揺れでも玉を壁内に保持し、重なりを解消する', () => {
+  const balls: MemoryBall[] = vesselSlots(wall, 32, 21).map(p => ({ ...p, vx: 100, vy: -180, r: 21 }));
+  for (let i = 0; i < 480; i++) stepVessel(wall, balls, 1 / 120, 100, 300);
+  balls.forEach((p, i) => {
+    expect(insideWall(wall, p.x, p.y)).toBe(true);
+    expect(nearestWall(wall, p.x, p.y).distance).toBeGreaterThanOrEqual(20.9);
+    balls.slice(i + 1).forEach(q => expect(Math.hypot(p.x - q.x, p.y - q.y)).toBeGreaterThan(41.8));
+  });
+});

@@ -9,7 +9,7 @@
 - Webpackビルドを維持しています。M3時点でTurbopackの内部ポート作成が実行環境に拒否されたためで、PWA化に変更は不要です。
 - ビルド後に `scripts/build-pwa.mjs` がpublic/sw.jsとpublic/pwa-assets.jsonを生成します。両ファイルはGit管理対象外ですが、Vercelのビルドで生成・配信されます。`next build`だけを手動指定せず、必ず`npm run build`を使用してください。
 - 環境変数、APIキー、サーバーDB、認証、Cronは不要です。そのため.env.exampleは作成していません。秘密情報は追加しないでください。
-- アイコンは既存の星形ロゴを基にした暫定アイコンです。`npm run icons`でSVGからPNGを再生成できます。
+- アイコンは利用者が提供した青い脳・チェックマーク・循環矢印の画像です。原本は `public/icons/source.png` に保持し、`npm run icons` で各サイズを再生成できます。黒い外側余白のみ白に整え、通常アイコンは外側余白を6%ずつトリミング、Android用maskableには安全余白を設けています。インストール済みPWAのアイコン更新時期はOSに依存するため、実機でも確認してください。
 
 ## 公開前のローカル確認
 
