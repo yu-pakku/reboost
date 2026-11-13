@@ -223,3 +223,13 @@ html { scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom)); }
 .vessel-ball-enter { animation:vessel-arrive .9s ease-out both; }
 @keyframes vessel-arrive { from { opacity:0; transform:translateY(-24px); } to { opacity:1; transform:translateY(0); } }
 @media (prefers-reduced-motion:reduce) { .vessel-ball-enter { animation:none; } }
+
+.onboarding-start { min-height:58px; display:flex; align-items:center; justify-content:center; gap:18px; border-radius:16px; box-shadow:0 4px 0 #183b4d,0 9px 18px #244c6015; transition:transform .16s ease,box-shadow .16s ease; letter-spacing:.025em; }
+.onboarding-start:not(:disabled):active,.onboarding-start:disabled { transform:translateY(3px); box-shadow:0 1px 0 #183b4d,0 3px 8px #244c6015; }
+.onboarding-start:disabled { opacity:1; }
+.onboarding-start-arrow { display:grid; place-items:center; width:25px; height:25px; border:1px solid #ffffff50; border-radius:50%; font-size:17px; font-weight:400; }
+.onboarding[aria-busy="true"] .vessel-controls { visibility:hidden; }
+.onboarding[aria-busy="true"] .brain-button { pointer-events:none; }
+.onboarding-home-enter { animation:onboarding-home-arrive .48s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes onboarding-home-arrive { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+@media(prefers-reduced-motion:reduce) { .onboarding-home-enter { animation:none; } .onboarding-start { transition:none; } }

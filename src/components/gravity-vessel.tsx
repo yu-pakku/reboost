@@ -1,14 +1,16 @@
 'use client';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useImperativeHandle, useRef, useState, type RefObject } from 'react';
 import { clamp, stepVessel, vesselSlots, type MemoryBall } from '@/domain/vessel-physics';
 
 type Item = { id: string; entering?: boolean };
 type MotionConstructor = typeof DeviceMotionEvent & { requestPermission?: () => Promise<string> };
-export function GravityVessel({ items, description }: { items: readonly Item[]; description: string }) {
+export type VesselIntroHandle = { drop: () => Promise<void> };
+export function GravityVessel({ items, description, decorative = false, introRef }: { items: readonly Item[]; description: string; decorative?: boolean; introRef?: RefObject<VesselIntroHandle | null> }) {
   const uid = useId();
   const wallRef = useRef<SVGPathElement>(null);
   const layerRef = useRef<SVGGElement>(null);
-  const controller = useRef({ shake: () => {}, pause: (_value: boolean) => { void _value; } });
+  const controller = useRef({ drop: async () => {}, shake: () => {}, pause: (_value: boolean) => { void _value; } });
+  useImperativeHandle(introRef, () => ({ drop: () => controller.current.drop() }), []);
   const [paused, setPaused] = useState(false);
   const [reduced, setReduced] = useState(false);
   const [sensor, setSensor] = useState(false);
@@ -33,16 +35,30 @@ export function GravityVessel({ items, description }: { items: readonly Item[]; 
     const slots = vesselSlots(wall, nodes.length, radius);
     const balls: MemoryBall[] = nodes.map((_, i) => ({ ...(slots[i] ?? { x: 200, y: 100 }), vx: i * 17 % 7 - 3, vy: 0, r: radius }));
     let gx = 0, gy = 300, held = paused, frameId = 0, last = 0;
+    let drop: { elapsed: number; resolve: () => void } | undefined;
+    const finishDrop = () => { const done = drop; drop = undefined; done?.resolve(); };
     const draw = () => balls.forEach((ball, i) => nodes[i].setAttribute('transform', `translate(${ball.x.toFixed(2)} ${ball.y.toFixed(2)})`));
     const frame = (time: number) => {
       const dt = Math.min((time - last) / 1000 || 1 / 60, .032); last = time;
       for (let i = 0; i < 3; i++) stepVessel(wall, balls, dt / 3, gx, gy);
-      draw(); if (!held && !reduced && !document.hidden) frameId = requestAnimationFrame(frame);
+      draw(); if (drop) { drop.elapsed += dt; if (drop.elapsed >= 1.9) finishDrop(); }
+      if (!held && !reduced && !document.hidden) frameId = requestAnimationFrame(frame);
     };
     const play = () => { cancelAnimationFrame(frameId); last = 0; if (!held && !reduced && !document.hidden) frameId = requestAnimationFrame(frame); };
     for (let i = 0; i < 480; i++) stepVessel(wall, balls, 1 / 120);
     draw(); play();
     controller.current = {
+      drop: () => new Promise<void>(resolve => {
+        if (!decorative || drop || !nodes[0]) { resolve(); return; }
+        held = false;
+        const node = nodes[0].cloneNode(true) as SVGGElement;
+        node.querySelectorAll('.vessel-ball-enter,.particle-added').forEach(child => child.classList.remove('vessel-ball-enter', 'particle-added'));
+        layer.append(node); nodes.push(node);
+        balls.push({ x: 164, y: -34, vx: 2, vy: 0, r: radius, enteringVessel: true });
+        drop = { elapsed: 0, resolve };
+        if (reduced) { for (let i = 0; i < 300; i++) stepVessel(wall, balls, 1 / 120); draw(); finishDrop(); }
+        else { draw(); play(); }
+      }),
       shake: () => { if (held || reduced) return; balls.forEach((ball, i) => { ball.vx += (i % 2 ? 1 : -1) * (80 + i % 6 * 16); ball.vy -= 160 + i % 6 * 11; }); play(); },
       pause: value => { held = value; play(); },
     };
@@ -62,10 +78,10 @@ export function GravityVessel({ items, description }: { items: readonly Item[]; 
     };
     document.addEventListener('visibilitychange', play);
     if (sensor && !reduced) window.addEventListener('devicemotion', motion);
-    return () => { cancelAnimationFrame(frameId); document.removeEventListener('visibilitychange', play); window.removeEventListener('devicemotion', motion); };
+    return () => { finishDrop(); nodes.slice(items.length).forEach(node => node.remove()); controller.current = { drop: async () => {}, shake: () => {}, pause: () => {} }; cancelAnimationFrame(frameId); document.removeEventListener('visibilitychange', play); window.removeEventListener('devicemotion', motion); };
     // Positions reset only when the collection, material scale, or sensor mode changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature, radius, reduced, sensor]);
+  }, [signature, radius, reduced, sensor, decorative]);
   async function toggleSensor() {
     if (sensor) { permissionAttempt.current++; setSensor(false); setMessage('端末連動を停止しました。'); return; }
     const attempt = ++permissionAttempt.current;
@@ -100,7 +116,7 @@ export function GravityVessel({ items, description }: { items: readonly Item[]; 
             <path d="M250 84C228 88 220 107 229 126C238 144 256 145 257 164C258 180 247 193 232 191"/>
             <path d="M334 139C313 127 293 141 291 162C290 181 302 193 316 191"/>
           </g>
-          <g ref={layerRef}>{items.map((item, i) => <g key={item.id} data-particle-id={item.id} data-crystal-position={i} transform={`translate(${140 + i % 3 * 45} ${170 - Math.floor(i / 3) * 40})`}>
+          <g ref={layerRef}>{items.map((item, i) => <g key={item.id} data-particle-id={decorative ? undefined : item.id} className={decorative ? 'sample-particle' : undefined} data-crystal-position={i} transform={`translate(${140 + i % 3 * 45} ${170 - Math.floor(i / 3) * 40})`}>
             <g className={item.entering ? 'vessel-ball-enter particle-added' : undefined} onAnimationEnd={event => event.currentTarget.classList.remove('vessel-ball-enter', 'particle-added')}>
               <circle data-visual-item="" r={radius} fill={`url(#${uid}-bead-glass)`} stroke="#a6cbd9" strokeWidth=".85"/>
               <g transform={`scale(${radius / 21})`} fill="none" stroke="#7da5ad" strokeWidth=".9" strokeLinecap="round" strokeLinejoin="round">
@@ -115,7 +131,7 @@ export function GravityVessel({ items, description }: { items: readonly Item[]; 
     </button>
     <div className="vessel-controls">
       <button type="button" disabled={reduced} aria-pressed={paused} onClick={() => { controller.current.pause(!paused); setPaused(!paused); }}>{reduced ? '動きを軽減中' : paused ? '動きを再開' : '動きを止める'}</button>
-      <button type="button" disabled={reduced} aria-pressed={sensor} onClick={toggleSensor}>{sensor ? '端末連動を停止' : '端末と連動'}</button>
+      {!decorative && <button type="button" disabled={reduced} aria-pressed={sensor} onClick={toggleSensor}>{sensor ? '端末連動を停止' : '端末と連動'}</button>}
     </div>
     {message && <p className="subtext" role="status">{message}</p>}
   </div>;

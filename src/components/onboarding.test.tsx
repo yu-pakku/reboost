@@ -1,0 +1,41 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { expect, it, vi } from 'vitest';
+import { Onboarding } from './onboarding';
+const complete = vi.hoisted(() => vi.fn());
+vi.mock('@/data/onboarding', () => ({ completeOnboarding: complete }));
+it('現在の種入りの容器をサンプルとして表示し、端末連動を要求しない', () => {
+  render(<Onboarding onComplete={vi.fn()}/>);
+  expect(screen.getByRole('img', { name: '脳型の知識容器' })).toHaveAccessibleDescription(/説明用のサンプル/);
+  expect(document.querySelectorAll('.sample-particle')).toHaveLength(6);
+  expect(document.querySelectorAll('[data-particle-id]')).toHaveLength(0);
+  expect(document.querySelectorAll('.sample-particle circle[data-visual-item]')).toHaveLength(6);
+  expect(screen.queryByRole('button', { name: '端末と連動' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '動きを止める' })).toBeInTheDocument();
+});
+it('開始の保存失敗時は再試行でき、二重送信せずホームへ進む', async () => {
+  complete.mockRejectedValueOnce(new Error('storage')).mockResolvedValueOnce(undefined);
+  const onComplete = vi.fn();
+  render(<Onboarding onComplete={onComplete}/>);
+  fireEvent.click(screen.getByRole('button', { name: 'さあ、始めよう' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('開始状態を保存できませんでした');
+  expect(onComplete).not.toHaveBeenCalled();
+  const start = screen.getByRole('button', { name: 'さあ、始めよう' });
+  fireEvent.click(start); fireEvent.click(start);
+  await waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
+  expect(complete).toHaveBeenCalledTimes(2);
+});
+it('退出アニメーションの完了を待ってホームへ進む', async () => {
+  complete.mockResolvedValue(undefined);
+  let finish!: () => void;
+  const animation = { finished: new Promise<void>(resolve => { finish = resolve; }), cancel: vi.fn(), finish: vi.fn() };
+  const onComplete = vi.fn();
+  const view = render(<Onboarding onComplete={onComplete}/>);
+  const section = view.container.querySelector('section.onboarding')!;
+  Object.defineProperty(section, 'animate', { configurable: true, value: vi.fn(() => animation) });
+  fireEvent.click(screen.getByRole('button', { name: 'さあ、始めよう' }));
+  await waitFor(() => expect(section.animate).toHaveBeenCalledOnce());
+  expect(onComplete).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'はじめの一歩…' })).toBeDisabled();
+  finish();
+  await waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
+});

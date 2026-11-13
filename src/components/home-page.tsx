@@ -14,6 +14,7 @@ import { formatDate } from '@/lib/knowledge-display';
 export default function Home() {
   const [view, setView] = useState<'loading' | 'intro' | 'home'>('loading');
   const focusHome = useRef(false);
+  const [arriving, setArriving] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     let active = true;
@@ -32,9 +33,10 @@ export default function Home() {
   </AppShell>;
   if (view === 'intro') return <Onboarding onComplete={() => {
     focusHome.current = true;
+    setArriving(true);
     setView('home');
   }}/>;
-  return <HomeCollection heading={heading}/>;
+  return <div className={arriving ? 'onboarding-home-enter' : undefined}><HomeCollection heading={heading}/></div>;
 }
 
 function HomeCollection({ heading }: { heading: React.RefObject<HTMLHeadingElement | null> }) {

@@ -1,6 +1,6 @@
 /** Display-only physics. Never reads or writes learning data. */
 export type Point = { x: number; y: number };
-export type MemoryBall = Point & { vx: number; vy: number; r: number };
+export type MemoryBall = Point & { vx: number; vy: number; r: number; enteringVessel?: boolean };
 export const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 export function insideWall(wall: readonly Point[], x: number, y: number) {
   let hit = false;
@@ -21,6 +21,7 @@ export function nearestWall(wall: readonly Point[], x: number, y: number) {
   return { distance, point };
 }
 export function containBall(wall: readonly Point[], ball: MemoryBall) {
+  if (ball.enteringVessel) { if (ball.y < 55) return; ball.enteringVessel = false; }
   const { distance, point } = nearestWall(wall, ball.x, ball.y), within = insideWall(wall, ball.x, ball.y);
   if (distance >= ball.r && within) return;
   const sign = within ? 1 : -1;
